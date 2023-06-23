@@ -37,6 +37,13 @@ class WebserviceBackend(models.Model):
         ],
         required=True,
     )
+    save_response = fields.Boolean(
+        default=False,
+        help=(
+            "Control whatever the webservice response should be saved on the "
+            "webservice consumer record if defined while processing the HTTP end point",
+        ),
+    )
 
     @api.constrains("auth_type")
     def _check_auth_type(self):

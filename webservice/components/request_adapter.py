@@ -3,9 +3,13 @@
 # @author Simone Orsi <simahawk@gmail.com>
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
+import base64
+
 import requests
 
 from odoo.addons.component.core import Component
+
+from ..models.webservice_consumer_mixin import WebserviceConsumerMixin
 
 
 class BaseRestRequestsAdapter(Component):
@@ -16,13 +20,26 @@ class BaseRestRequestsAdapter(Component):
     _webservice_protocol = "http"
 
     # TODO: url and url_params could come from work_ctx
-    def _request(self, method, url=None, url_params=None, **kwargs):
+    def _request(
+        self, method, url=None, url_params=None, consumer_record=None, **kwargs
+    ):
+        if self.collection.save_response and isinstance(
+            consumer_record, WebserviceConsumerMixin
+        ):
+            consumer_record.ws_response_content = False
+            consumer_record.ws_response_status_code = False
         url = self._get_url(url=url, url_params=url_params)
         new_kwargs = kwargs.copy()
         new_kwargs.update(
             {"auth": self._get_auth(**kwargs), "headers": self._get_headers(**kwargs)}
         )
         request = requests.request(method, url, **new_kwargs)
+        if self.collection.save_response and isinstance(
+            consumer_record, WebserviceConsumerMixin
+        ):
+            consumer_record.ws_response_content = base64.b64encode(request.content)
+            consumer_record.ws_response_status_code = request.status_code
+
         request.raise_for_status()
         return request.content
 

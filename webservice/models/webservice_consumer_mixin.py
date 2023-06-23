@@ -21,7 +21,8 @@ class WebserviceConsumerMixin(models.AbstractModel):
 
     def _compute_ws_response_content_filename(self):
         for rec in self:
-            rec.ws_response_content_filename = "response_%s_%s.json" % (
-                str(rec.ws_response_status_code),
-                self.name_get()[1],
+            rec.ws_response_content_filename = (
+                "response_%s.json" % (str(rec.ws_response_status_code),)
+                if rec.ws_response_status_code
+                else ""
             )
