@@ -49,7 +49,10 @@ class TestWebService(CommonWebService):
         consumer_record = self.env["fake.webservice.consumer"].create({})
         responses.add(responses.POST, self.url, body=content)
         self.webservice.call(
-            "post", data="demo_response", consumer_record=consumer_record
+            "post",
+            data="demo_response",
+            consumer_record=consumer_record,
+            new_cursor=False,
         )
         self.assertEqual(
             base64.b64decode(consumer_record.ws_response_content).decode(), content
@@ -66,7 +69,10 @@ class TestWebService(CommonWebService):
         consumer_record = self.env["fake.webservice.consumer"].create({})
         with self.assertRaisesRegex(HTTPError, "401 Client Error: Unauthorized"):
             self.webservice.call(
-                "post", data="demo_response", consumer_record=consumer_record
+                "post",
+                data="demo_response",
+                consumer_record=consumer_record,
+                new_cursor=False,
             )
 
         self.assertEqual(
@@ -107,7 +113,10 @@ class TestWebService(CommonWebService):
         ):
             with self.assertRaisesRegex(Exception, "Not an HTTPError"):
                 self.webservice.call(
-                    "post", data="demo_response", consumer_record=consumer_record
+                    "post",
+                    data="demo_response",
+                    consumer_record=consumer_record,
+                    new_cursor=False,
                 )
         self.assertEqual(consumer_record.ws_response_content, False)
         self.assertEqual(consumer_record.ws_response_status_code, False)

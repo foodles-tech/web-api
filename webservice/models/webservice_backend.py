@@ -2,8 +2,12 @@
 # Copyright 2022 Camptocamp SA
 # @author Simone Orsi <simahawk@gmail.com>
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
+import base64
+from contextlib import contextmanager
 
-from odoo import _, api, exceptions, fields, models
+from requests import HTTPError
+
+from odoo import _, api, exceptions, fields, models, registry
 
 
 class WebserviceBackend(models.Model):
@@ -78,8 +82,40 @@ class WebserviceBackend(models.Model):
         extra_params = ("auth_type",)
         return name in extra_params or super()._valid_field_parameter(field, name)
 
-    def call(self, method, *args, **kwargs):
-        return getattr(self._get_adapter(), method)(*args, **kwargs)
+    @contextmanager
+    def _consumer_record_env(self, record, new_cursor=True):
+        if new_cursor:
+            with api.Environment.manage():
+                with registry(self.env.cr.dbname).cursor() as new_cr:
+                    new_env = api.Environment(new_cr, self.env.uid, self.env.context)
+                    # in case of error the main transaction will be rollback
+                    # in any case we want to save the response payload for
+                    # later analysis. Some webservice gives informations regarding
+                    # the cause of failures
+                    yield record.with_env(new_env)
+        else:
+            yield record
+
+    def call(self, method, *args, consumer_record=None, new_cursor=True, **kwargs):
+        content = False
+        status_code = False
+        try:
+            content = getattr(self._get_adapter(), method)(*args, **kwargs)
+            status_code = 200
+        except HTTPError as request_error:
+            content = request_error.response.content
+            status_code = request_error.response.status_code
+            raise request_error from request_error
+        finally:
+            if self.save_response and consumer_record:
+                with self._consumer_record_env(
+                    consumer_record, new_cursor=new_cursor
+                ) as record:
+                    record.ws_response_content = (
+                        base64.b64encode(content) if content else False
+                    )
+                    record.ws_response_status_code = status_code
+        return content
 
     def _get_adapter(self):
         with self.work_on(self._name) as work:
