@@ -83,20 +83,20 @@ class WebserviceBackend(models.Model):
         return name in extra_params or super()._valid_field_parameter(field, name)
 
     @contextmanager
-    def _consumer_record_env(self, record, new_cursor=True):
+    def _consumer_record_env(self, record, new_cursor=False):
         if new_cursor:
             with api.Environment.manage():
                 with registry(self.env.cr.dbname).cursor() as new_cr:
                     new_env = api.Environment(new_cr, self.env.uid, self.env.context)
                     # in case of error the main transaction will be rollback
                     # in any case we want to save the response payload for
-                    # later analysis. Some webservice gives informations regarding
+                    # later analysis. Some web-services gives information regarding
                     # the cause of failures
                     yield record.with_env(new_env)
         else:
             yield record
 
-    def call(self, method, *args, consumer_record=None, new_cursor=True, **kwargs):
+    def call(self, method, *args, consumer_record=None, **kwargs):
         content = False
         status_code = False
         try:
@@ -109,7 +109,7 @@ class WebserviceBackend(models.Model):
         finally:
             if self.save_response and consumer_record:
                 with self._consumer_record_env(
-                    consumer_record, new_cursor=new_cursor
+                    consumer_record, new_cursor=status_code != 200
                 ) as record:
                     record.ws_response_content = (
                         base64.b64encode(content) if content else False

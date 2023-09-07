@@ -3,6 +3,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 import base64
+from contextlib import contextmanager
 from unittest import mock
 
 import responses
@@ -42,6 +43,12 @@ class TestWebService(CommonWebService):
             }
         )
 
+        @contextmanager
+        def _consumer_record_no_new_env(self, record, new_cursor=True):
+            yield record
+
+        cls._consumer_record_no_new_env = _consumer_record_no_new_env
+
     @responses.activate
     def test_web_service_post(self):
         content = "{'test': true}"
@@ -52,7 +59,6 @@ class TestWebService(CommonWebService):
             "post",
             data="demo_response",
             consumer_record=consumer_record,
-            new_cursor=False,
         )
         self.assertEqual(
             base64.b64decode(consumer_record.ws_response_content).decode(), content
@@ -68,11 +74,18 @@ class TestWebService(CommonWebService):
         responses.add(responses.POST, self.url, body=content, status=401)
         consumer_record = self.env["fake.webservice.consumer"].create({})
         with self.assertRaisesRegex(HTTPError, "401 Client Error: Unauthorized"):
-            self.webservice.call(
-                "post",
-                data="demo_response",
-                consumer_record=consumer_record,
-                new_cursor=False,
+            with mock.patch(
+                "odoo.addons.webservice.models.webservice_backend."
+                "WebserviceBackend._consumer_record_env",
+                side_effect=self._consumer_record_no_new_env,
+            ) as consumer_record_env_mock:
+                self.webservice.call(
+                    "post",
+                    data="demo_response",
+                    consumer_record=consumer_record,
+                )
+            consumer_record_env_mock.assert_called_once_with(
+                consumer_record, new_cursor=True
             )
 
         self.assertEqual(
@@ -111,13 +124,29 @@ class TestWebService(CommonWebService):
             ),
             side_effect=Exception("Not an HTTPError"),
         ):
-            with self.assertRaisesRegex(Exception, "Not an HTTPError"):
-                self.webservice.call(
-                    "post",
-                    data="demo_response",
-                    consumer_record=consumer_record,
-                    new_cursor=False,
+            with mock.patch(
+                "odoo.addons.webservice.models.webservice_backend."
+                "WebserviceBackend._consumer_record_env",
+                side_effect=self._consumer_record_no_new_env,
+            ) as consumer_record_env_mock:
+                with self.assertRaisesRegex(Exception, "Not an HTTPError"):
+                    self.webservice.call(
+                        "post",
+                        data="demo_response",
+                        consumer_record=consumer_record,
+                    )
+                consumer_record_env_mock.assert_called_once_with(
+                    consumer_record, new_cursor=True
                 )
         self.assertEqual(consumer_record.ws_response_content, False)
         self.assertEqual(consumer_record.ws_response_status_code, False)
         self.assertEqual(consumer_record.ws_response_content_filename, "")
+
+    def test_consumer_record_env_new_transaction(self):
+        record = self.env.user
+
+        with self.webservice._consumer_record_env(
+            record, new_cursor=True
+        ) as rec_new_tx:
+            self.assertEqual(record.id, rec_new_tx.id)
+            self.assertNotEqual(record.env.cr, rec_new_tx.env.cr)
