@@ -44,8 +44,8 @@ class WebserviceBackend(models.Model):
     save_response = fields.Boolean(
         default=False,
         help=(
-            "Control whatever the webservice response should be saved on the "
-            "webservice consumer record if defined while processing the HTTP end point",
+            "If enabled, the response for the external call will be saved on the "
+            "webservice consumer record",
         ),
     )
 
