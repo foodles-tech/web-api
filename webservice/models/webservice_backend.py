@@ -115,6 +115,7 @@ class WebserviceBackend(models.Model):
                         base64.b64encode(content) if content else False
                     )
                     record.ws_response_status_code = status_code
+                    record.ws_response_date = fields.Datetime.now()
         return content
 
     def _get_adapter(self):

@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from unittest import mock
 
 import responses
+from freezegun import freeze_time
 from odoo_test_helper import FakeModelLoader
 from requests.exceptions import HTTPError
 
@@ -50,6 +51,7 @@ class TestWebService(CommonWebService):
         cls._consumer_record_no_new_env = _consumer_record_no_new_env
 
     @responses.activate
+    @freeze_time("2014-06-15 16:24:33")
     def test_web_service_post(self):
         content = "{'test': true}"
 
@@ -65,10 +67,12 @@ class TestWebService(CommonWebService):
         )
         self.assertEqual(consumer_record.ws_response_status_code, 200)
         self.assertEqual(
-            consumer_record.ws_response_content_filename, "response_200.json"
+            consumer_record.ws_response_content_filename,
+            "response_2014-06-15-16-24-33_200.json",
         )
 
     @responses.activate
+    @freeze_time("2024-06-15 16:24:33")
     def test_web_service_with_error(self):
         content = "{'error': 'something goes wrong'}"
         responses.add(responses.POST, self.url, body=content, status=401)
@@ -93,7 +97,8 @@ class TestWebService(CommonWebService):
         )
         self.assertEqual(consumer_record.ws_response_status_code, 401)
         self.assertEqual(
-            consumer_record.ws_response_content_filename, "response_401.json"
+            consumer_record.ws_response_content_filename,
+            "response_2024-06-15-16-24-33_401.json",
         )
 
     @responses.activate
