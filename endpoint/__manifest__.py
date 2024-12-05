@@ -4,7 +4,7 @@
 {
     "name": "Endpoint",
     "summary": """Provide custom endpoint machinery.""",
-    "version": "14.0.2.0.2",
+    "version": "14.0.2.3.0",
     "license": "LGPL-3",
     "development_status": "Beta",
     "author": "Camptocamp,Odoo Community Association (OCA)",
@@ -13,6 +13,7 @@
     "depends": ["endpoint_route_handler", "rpc_helper"],
     "data": [
         "security/ir.model.access.csv",
+        "security/ir_rule.xml",
         "views/endpoint_view.xml",
     ],
     "demo": [
